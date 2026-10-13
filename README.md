@@ -13,7 +13,7 @@ This repository implements an end-to-end workflow where a language model turns a
 4. End-to-end orchestration:
    `answer pipeline.py` (wrapper) -> `pipeline/answering_pipeline.py`
 5. Optional report view:
-   `scripts/generate_output_summary.py` -> `outputs/summary/index.html`
+   `scripts/generate_output_summary.py` -> HTML summary
 
 Architecture diagrams (components + data flow):
 
@@ -75,9 +75,38 @@ C:/Users/Azmee/my_python_project/.venv/Scripts/python.exe "answer pipeline.py" -
 Generate simple HTML summary:
 
 ```powershell
-C:/Users/Azmee/my_python_project/.venv/Scripts/python.exe scripts/generate_output_summary.py
-Start-Process ".\outputs\summary\index.html"
+python scripts/generate_output_summary.py
 ```
+
+Sample report output for `run_2026_02_13`:
+
+| Total questions | Stable | Vulnerable | Unstable | Constrained | Unknown |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 3 | 2 | 1 | 0 | 0 | 0 |
+
+**q1 - stable**
+
+**Question:** Voltage stability duration assessment. For Run run_2026_02_13, how long was Node 25 within the acceptable voltage range (0.95-1.05 pu), and how long was it outside that range?
+
+**Rows:** 1 | **Execution ms:** 190.48
+
+> For run_2026_02_13, Node 25 was within the acceptable 0.95–1.05 pu range for 0 samples and outside the range for 1962 samples. Interpreting samples as equal-duration timesteps, that means 0 timestep-duration in-range and 1962 timestep-durations out-of-range over the assessed period. The condition label is stable. This result suggests a data/scoping issue (e.g., the view may already contain only violations or may not be filtered to Node 25/run_2026_02_13), because an all-outside outcome conflicts with “no major violations.” Recommendation: re-run the query against the full voltage time series filtered by run and node, and compute durations using the actual timestep (or timestamps) rather than raw sample counts.
+
+**q2 - vulnerable**
+
+**Question:** Identification of most voltage-vulnerable nodes. Across all monitored buses in Run run_2026_02_13, which node experienced the most severe voltage violations based on count and total duration?
+
+**Rows:** 1 | **Execution ms:** 213.65
+
+> Across all monitored buses in run_2026_02_13, node 86 experienced the most severe voltage violations by both count and duration. It recorded 675 violation events with a total violation window of 0 days 00:08:18. The aggregated deviation was -1.18154 pu, indicating predominantly undervoltage behavior, while the maximum deviation observed in this result set was 0.0 pu. Based on these indicators, the condition label is vulnerable. Recommendation: prioritize node 86 for mitigation by checking local voltage support capability (e.g., inverter VAR settings, capacitor control, or tap changer coordination) and validating the underlying load/DER modeling around that bus.
+
+**q3 - stable**
+
+**Question:** Reactive power overshoot and voltage impact. At Node 25 during Run run_2026_02_13, did reactive power injection overshoot the reference value, and did overshoot coincide with voltage oscillations or repeated voltage excursions?
+
+**Rows:** 2 | **Execution ms:** 205.35
+
+> At Node 25 in run_2026_02_13, reactive power injection did overshoot the reference, but only slightly and briefly. At ts=1970-01-01 00:00:02+00:00, Phase A showed a positive tracking error of +0.00358 (max_abs_q_tracking_error=0.00358), while other phases were essentially zero. This small overshoot did not coincide with voltage oscillations or repeated excursions; the voltage change was a single-step increase on v_a of dv_a=+0.00439 (0.94273 to 0.94712 pu) with no evidence of back-and-forth behavior given only two samples. Both timestamps show an under-voltage on Phase A (0.94273 pu and 0.94712 pu), indicating a mild but persistent low-voltage condition rather than oscillatory instability. Condition label: stable. Recommendation: extend the time window and sampling (more than 2 points) and add an overshoot threshold (e.g., flag >0.01 pu-equivalent Q error) to confirm whether this is benign tracking noise or a repeatable control transient near the undervoltage boundary.
 
 ## Example Commands and Expected Outputs
 
@@ -144,7 +173,7 @@ outputs/
   sql results/
   constraint checks/
   final answers/
-  summary/index.html
+   HTML summary
 manual sql validation.md
 ```
 

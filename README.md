@@ -1,0 +1,173 @@
+# LLM-Based Monitoring Copilot
+
+This repository implements an end-to-end workflow where a language model turns an operator question into SQL, executes that SQL on PostgreSQL, evaluates operating constraints, and returns a grounded final answer.
+
+## Workflow Architecture
+
+1. SQL generation from natural language:
+   `llm generate sql.py` (wrapper) -> `pipeline/sql_generator.py`
+2. SQL execution and packaging:
+   `run sql.py` (wrapper) -> `pipeline/sql_runner.py`
+3. Constraint classification:
+   `constraint check.py` (wrapper) -> `pipeline/constraint_checker.py`
+4. End-to-end orchestration:
+   `answer pipeline.py` (wrapper) -> `pipeline/answering_pipeline.py`
+5. Optional report view:
+   `scripts/generate_output_summary.py` -> `outputs/summary/index.html`
+
+Architecture diagrams (components + data flow):
+
+- `docs/grid-copilot-system-architecture.md`
+
+LLM context package used at query time:
+
+- `agentic_ai/M2/schema for llm.md`
+- `agentic_ai/M2/sql templates.md`
+- `agentic_ai/M2/id mapping.json`
+- `agentic_ai/M2/operational constraints.md`
+
+## Reproducible Setup
+
+1. Activate environment
+
+```powershell
+& .\.venv\Scripts\Activate.ps1
+```
+
+2. Create/refresh DB objects
+
+```bash
+psql "postgresql://postgres:YOUR_PASSWORD@localhost:5432/postgres" -f sql/schema.sql
+psql "postgresql://postgres:YOUR_PASSWORD@localhost:5432/postgres" -f sql/views.sql
+```
+
+3. Optional environment variables
+
+- `OPENAI_API_KEY` for LLM response generation
+- `DATABASE_URL` for PostgreSQL credentials and connection settings. Put it in your ignored `.env` file or set it in your shell; the source code contains no database password.
+
+## How To Run Case Study Pipeline
+
+Run all three case-study questions:
+
+```powershell
+C:/Users/Azmee/my_python_project/.venv/Scripts/python.exe "answer pipeline.py" --case-study --run-id "run_2026_02_13"
+```
+
+Run case-study questions from a JSON file (`id` + `question`):
+
+```powershell
+C:/Users/Azmee/my_python_project/.venv/Scripts/python.exe "answer pipeline.py" --case-study --run-id "run_2026_02_13" --questions-file "agentic_ai/M2/test_questions_v1.json"
+```
+
+Expected output files for this JSON format:
+
+- `outputs/final answers/q1.json`
+- `outputs/final answers/q2.json`
+- `outputs/final answers/q3.json`
+
+Run one custom question:
+
+```powershell
+C:/Users/Azmee/my_python_project/.venv/Scripts/python.exe "answer pipeline.py" --run-id "run_2026_02_13" --question-id "q_custom_1" --question "For this run, summarize SOC by node and highlight the lowest SOC nodes."
+```
+
+Generate simple HTML summary:
+
+```powershell
+C:/Users/Azmee/my_python_project/.venv/Scripts/python.exe scripts/generate_output_summary.py
+Start-Process ".\outputs\summary\index.html"
+```
+
+## Example Commands and Expected Outputs
+
+Generate SQL only:
+
+```powershell
+C:/Users/Azmee/my_python_project/.venv/Scripts/python.exe "llm generate sql.py" --run-id "run_2026_02_13" --question "Which nodes have the highest voltage violations?"
+```
+
+Expected output:
+
+- SQL draft in `logs/sql drafts/*.sql`
+
+Execute SQL only:
+
+```powershell
+C:/Users/Azmee/my_python_project/.venv/Scripts/python.exe "run sql.py" --sql-file "logs/sql drafts/<file>.sql" --question-id "demo_q"
+```
+
+Expected output:
+
+- `outputs/sql results/demo_q.json`
+- `outputs/sql results/demo_q.meta.json`
+
+Run constraint check only:
+
+```powershell
+C:/Users/Azmee/my_python_project/.venv/Scripts/python.exe "constraint check.py" --input "outputs/sql results/demo_q.json" --question-id "demo_q"
+```
+
+Expected output:
+
+- `outputs/constraint checks/demo_q.decision.json`
+
+Run end-to-end once:
+
+```powershell
+C:/Users/Azmee/my_python_project/.venv/Scripts/python.exe "answer pipeline.py" --run-id "run_2026_02_13" --question-id "single_q" --question "For this run, summarize active-power tracking error and rank nodes by max absolute error."
+```
+
+Expected output:
+
+- `outputs/final answers/single_q.json`
+- `outputs/sql results/single_q.json`
+- `outputs/constraint checks/single_q.decision.json`
+
+## Folder Structure (Portfolio Packaging)
+
+```text
+agentic_ai/M2/
+  schema for llm.md
+  sql templates.md
+  id mapping.json
+  operational constraints.md
+pipeline/
+  sql_generator.py
+  sql_runner.py
+  constraint_checker.py
+  answering_pipeline.py
+logs/
+  sql drafts/
+  refinement.json
+outputs/
+  sql results/
+  constraint checks/
+  final answers/
+  summary/index.html
+manual sql validation.md
+```
+
+## Grafana Screenshot Mapping
+
+Add screenshots under `docs/screenshots/`:
+
+- `docs/screenshots/grafana_voltage_violations.png`
+- `docs/screenshots/grafana_soc_summary.png`
+- `docs/screenshots/grafana_tracking_error.png`
+
+Map each screenshot to SQL evidence:
+
+1. `grafana_voltage_violations.png`
+   - SQL: `outputs/sql results/case_study_q1.json`
+   - Constraint: `outputs/constraint checks/case_study_q1.decision.json`
+2. `grafana_soc_summary.png`
+   - SQL: `outputs/sql results/case_study_q2.json`
+   - Constraint: `outputs/constraint checks/case_study_q2.decision.json`
+3. `grafana_tracking_error.png`
+   - SQL: `outputs/sql results/case_study_q3.json`
+   - Constraint: `outputs/constraint checks/case_study_q3.decision.json`
+
+Suggested caption template:
+
+`Question -> SQL file -> row_count -> constraint_label -> key numeric finding`

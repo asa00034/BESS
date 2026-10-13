@@ -1,0 +1,18 @@
+[
+  {
+    "id": "q1",
+    "question": "For the most voltage-vulnerable node in this run, how long did it stay within and outside the acceptable voltage limits?"
+  },
+  {
+    "id": "q2",
+    "question": "Which node had the most voltage violations in this run, and what were the violation statistics?"
+  },
+  {
+    "id": "q3",
+    "question": "Did reactive power overshoot coincide with voltage violations at any node during Volt-VAR control operation? Which nodes were most affected?"
+  },
+  {
+    "id": "q4",
+    "question": "How well did the BESS track the active power reference during demand response operation in this run?"
+  }
+]
